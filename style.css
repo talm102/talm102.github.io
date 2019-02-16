@@ -1,0 +1,19 @@
+body {
+	font-family: arial, verdana, "times new roman";
+	font-size: 16px;
+	color: navy;
+	background-color: #f0f8ff;
+}
+h1 {
+	color: white;	
+	background-color: #1e90ff;
+}
+h2 {
+	color: black;
+}
+p {
+	color: red;
+}
+a {
+	color: blue;
+}
