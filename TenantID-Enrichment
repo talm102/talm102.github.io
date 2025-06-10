@@ -1,0 +1,247 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "contentVersion": "1.0.0.0",
+        "triggers": {
+            "Microsoft_Sentinel_incident": {
+                "type": "ApiConnectionWebhook",
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                        }
+                    },
+                    "body": {
+                        "callback_url": "@{listCallbackUrl()}"
+                    },
+                    "path": "/incident-creation"
+                }
+            }
+        },
+        "actions": {
+            "Parse_JSON": {
+                "runAfter": {},
+                "type": "ParseJson",
+                "inputs": {
+                    "content": "@triggerBody()",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "body": {
+                                "type": "object",
+                                "properties": {
+                                    "object": {
+                                        "type": "object",
+                                        "properties": {
+                                            "properties": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "alerts": {
+                                                        "type": "array"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "For_each": {
+                "foreach": "@outputs('Parse_JSON')?['body']?['object']?['properties']?['alerts']",
+                "actions": {
+                    "Compose_CustomDetails": {
+                        "type": "Compose",
+                        "inputs": "@items('For_each')?['properties']?['additionalData']?['Custom Details']"
+                    },
+                    "Parse_CustomDetails": {
+                        "runAfter": {
+                            "Compose_CustomDetails": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "ParseJson",
+                        "inputs": {
+                            "content": "@outputs('Compose_CustomDetails')",
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "HomeTenantID": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "ResourceTenantID": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "SrcAcnt": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "HTTP": {
+                        "runAfter": {
+                            "Parse_CustomDetails": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "Http",
+                        "inputs": {
+                            "uri": "https://graph.microsoft.com/v1.0/tenantRelationships/findTenantInformationByTenantId(tenantId='@{body('Parse_CustomDetails')?['HomeTenantID'][0]}')",
+                            "method": "GET",
+                            "authentication": {
+                                "type": "ManagedServiceIdentity",
+                                "audience": "https://graph.microsoft.com"
+                            }
+                        },
+                        "runtimeConfiguration": {
+                            "contentTransfer": {
+                                "transferMode": "Chunked"
+                            }
+                        }
+                    },
+                    "Parse_JSON_-_HTTP": {
+                        "runAfter": {
+                            "HTTP": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "ParseJson",
+                        "inputs": {
+                            "content": "@body('HTTP')",
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "statusCode": {
+                                        "type": "integer"
+                                    },
+                                    "headers": {
+                                        "type": "object",
+                                        "properties": {
+                                            "Cache-Control": {
+                                                "type": "string"
+                                            },
+                                            "Transfer-Encoding": {
+                                                "type": "string"
+                                            },
+                                            "Vary": {
+                                                "type": "string"
+                                            },
+                                            "Strict-Transport-Security": {
+                                                "type": "string"
+                                            },
+                                            "request-id": {
+                                                "type": "string"
+                                            },
+                                            "client-request-id": {
+                                                "type": "string"
+                                            },
+                                            "x-ms-ags-diagnostic": {
+                                                "type": "string"
+                                            },
+                                            "x-ms-resource-unit": {
+                                                "type": "string"
+                                            },
+                                            "OData-Version": {
+                                                "type": "string"
+                                            },
+                                            "Date": {
+                                                "type": "string"
+                                            },
+                                            "Content-Type": {
+                                                "type": "string"
+                                            },
+                                            "Content-Length": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    },
+                                    "body": {
+                                        "type": "object",
+                                        "properties": {
+                                            "@@odata.context": {
+                                                "type": "string"
+                                            },
+                                            "tenantId": {
+                                                "type": "string"
+                                            },
+                                            "federationBrandName": {},
+                                            "displayName": {
+                                                "type": "string"
+                                            },
+                                            "defaultDomainName": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "Add_comment_to_incident_(V3)": {
+                        "runAfter": {
+                            "Parse_JSON_-_HTTP": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "ApiConnection",
+                        "inputs": {
+                            "host": {
+                                "connection": {
+                                    "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                }
+                            },
+                            "method": "post",
+                            "body": {
+                                "incidentArmId": "@triggerBody()?['object']?['id']",
+                                "message": "<p class=\"editor-paragraph\">HomeTenantID: @{body('Parse_JSON_-_HTTP')?['tenantId']}</p><p class=\"editor-paragraph\">Display Name: @{body('Parse_JSON_-_HTTP')?['displayName']}</p><p class=\"editor-paragraph\">Default Domain Name: @{body('Parse_JSON_-_HTTP')?['defaultDomainName']}</p>"
+                            },
+                            "path": "/Incidents/Comment"
+                        }
+                    }
+                },
+                "runAfter": {
+                    "Parse_JSON": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Foreach"
+            }
+        },
+        "outputs": {},
+        "parameters": {
+            "$connections": {
+                "type": "Object",
+                "defaultValue": {}
+            }
+        }
+    },
+    "parameters": {
+        "$connections": {
+            "type": "Object",
+            "value": {
+                "azuresentinel": {
+                    "id": "/subscriptions/e7ead463-f7db-479a-9a34-3d7535839330/providers/Microsoft.Web/locations/westeurope/managedApis/azuresentinel",
+                    "connectionId": "/subscriptions/e7ead463-f7db-479a-9a34-3d7535839330/resourceGroups/Log-Analytics/providers/Microsoft.Web/connections/azuresentinel-TenantID-Enrichment",
+                    "connectionName": "azuresentinel-TenantID-Enrichment",
+                    "connectionProperties": {
+                        "authentication": {
+                            "type": "ManagedServiceIdentity"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
