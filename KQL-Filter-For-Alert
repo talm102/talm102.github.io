@@ -1,0 +1,163 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "contentVersion": "1.0.0.0",
+        "triggers": {
+            "Microsoft_Sentinel_incident": {
+                "type": "ApiConnectionWebhook",
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                        }
+                    },
+                    "body": {
+                        "callback_url": "@{listCallbackUrl()}"
+                    },
+                    "path": "/incident-creation"
+                }
+            }
+        },
+        "actions": {
+            "Entities_-_Get_Accounts": {
+                "runAfter": {},
+                "type": "ApiConnection",
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['azuresentinel-2']['connectionId']"
+                        }
+                    },
+                    "method": "post",
+                    "body": "@triggerBody()?['object']?['properties']?['relatedEntities']",
+                    "path": "/entities/account"
+                }
+            },
+            "For_each": {
+                "foreach": "@body('Entities_-_Get_Accounts')?['Accounts']",
+                "actions": {
+                    "Run_query_and_list_results_V2_(Preview)": {
+                        "type": "ApiConnection",
+                        "inputs": {
+                            "host": {
+                                "connection": {
+                                    "name": "@parameters('$connections')['azuremonitorlogs']['connectionId']"
+                                }
+                            },
+                            "method": "post",
+                            "body": {
+                                "query": "let AccountEntity = @'@{item()?['Name']}';\nlet CheckAccount = case(\n                              AccountEntity has '@',\n                              tostring(split(AccountEntity, '@')[0]),\n                              AccountEntity has '\\\\',\n                              tostring(split(AccountEntity, '\\\\')[1]),\n                              AccountEntity\n                          );\nSecurityEvent\n| where EventID == 4625\n| where tolower(Account) contains tolower(tostring(CheckAccount))\n| count",
+                                "timerangetype": "2",
+                                "timerange": {
+                                    "relativeTimeRange": "Last 12 hours"
+                                }
+                            },
+                            "path": "/queryDataV2",
+                            "queries": {
+                                "subscriptions": "e7ead463-f7db-479a-9a34-3d7535839330",
+                                "resourcegroups": "Log-Analytics",
+                                "resourcetype": "Log Analytics Workspace",
+                                "resourcename": "SentinelLogs"
+                            }
+                        }
+                    },
+                    "Condition": {
+                        "actions": {
+                            "Update_incident": {
+                                "type": "ApiConnection",
+                                "inputs": {
+                                    "host": {
+                                        "connection": {
+                                            "name": "@parameters('$connections')['azuresentinel-2']['connectionId']"
+                                        }
+                                    },
+                                    "method": "put",
+                                    "body": {
+                                        "incidentArmId": "@triggerBody()?['object']?['id']",
+                                        "tagsToAdd": {
+                                            "TagsToAdd": [
+                                                {
+                                                    "Tag": "Automation Test"
+                                                }
+                                            ]
+                                        },
+                                        "status": "Closed",
+                                        "classification": {
+                                            "ClassificationAndReason": "BenignPositive - SuspiciousButExpected",
+                                            "ClassificationReasonText": "Closed by Automation"
+                                        }
+                                    },
+                                    "path": "/Incidents"
+                                }
+                            }
+                        },
+                        "runAfter": {
+                            "Run_query_and_list_results_V2_(Preview)": [
+                                "Succeeded"
+                            ]
+                        },
+                        "else": {
+                            "actions": {}
+                        },
+                        "expression": {
+                            "and": [
+                                {
+                                    "lessOrEquals": [
+                                        "@body('Run_query_and_list_results_V2_(Preview)')?['value'][0]['Count']",
+                                        5
+                                    ]
+                                }
+                            ]
+                        },
+                        "type": "If"
+                    }
+                },
+                "runAfter": {
+                    "Entities_-_Get_Accounts": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Foreach"
+            }
+        },
+        "outputs": {},
+        "parameters": {
+            "$connections": {
+                "type": "Object",
+                "defaultValue": {}
+            }
+        }
+    },
+    "parameters": {
+        "$connections": {
+            "type": "Object",
+            "value": {
+                "azuresentinel": {
+                    "id": "/subscriptions/e7ead463-f7db-479a-9a34-3d7535839330/providers/Microsoft.Web/locations/westeurope/managedApis/azuresentinel",
+                    "connectionId": "/subscriptions/e7ead463-f7db-479a-9a34-3d7535839330/resourceGroups/Log-Analytics/providers/Microsoft.Web/connections/azuresentinel-Get-GeoFromIpAndTagIncident",
+                    "connectionName": "azuresentinel-Get-GeoFromIpAndTagIncident"
+                },
+                "azuresentinel-2": {
+                    "id": "/subscriptions/e7ead463-f7db-479a-9a34-3d7535839330/providers/Microsoft.Web/locations/westeurope/managedApis/azuresentinel",
+                    "connectionId": "/subscriptions/e7ead463-f7db-479a-9a34-3d7535839330/resourceGroups/Log-Analytics/providers/Microsoft.Web/connections/azuresentinel-2",
+                    "connectionName": "azuresentinel-2",
+                    "connectionProperties": {
+                        "authentication": {
+                            "type": "ManagedServiceIdentity"
+                        }
+                    }
+                },
+                "azuremonitorlogs": {
+                    "id": "/subscriptions/e7ead463-f7db-479a-9a34-3d7535839330/providers/Microsoft.Web/locations/westeurope/managedApis/azuremonitorlogs",
+                    "connectionId": "/subscriptions/e7ead463-f7db-479a-9a34-3d7535839330/resourceGroups/Log-Analytics/providers/Microsoft.Web/connections/azuremonitorlogs",
+                    "connectionName": "azuremonitorlogs",
+                    "connectionProperties": {
+                        "authentication": {
+                            "type": "ManagedServiceIdentity"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
