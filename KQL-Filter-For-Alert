@@ -133,13 +133,13 @@
             "type": "Object",
             "value": {
                 "azuresentinel": {
-                    "id": "/subscriptions/e7ead463-f7db-479a-9a34-3d7535839330/providers/Microsoft.Web/locations/westeurope/managedApis/azuresentinel",
-                    "connectionId": "/subscriptions/e7ead463-f7db-479a-9a34-3d7535839330/resourceGroups/Log-Analytics/providers/Microsoft.Web/connections/azuresentinel-Get-GeoFromIpAndTagIncident",
+                    "id": "/subscriptions/""/providers/Microsoft.Web/locations/westeurope/managedApis/azuresentinel",
+                    "connectionId": "/subscriptions/""/resourceGroups/Log-Analytics/providers/Microsoft.Web/connections/azuresentinel-Get-GeoFromIpAndTagIncident",
                     "connectionName": "azuresentinel-Get-GeoFromIpAndTagIncident"
                 },
                 "azuresentinel-2": {
-                    "id": "/subscriptions/e7ead463-f7db-479a-9a34-3d7535839330/providers/Microsoft.Web/locations/westeurope/managedApis/azuresentinel",
-                    "connectionId": "/subscriptions/e7ead463-f7db-479a-9a34-3d7535839330/resourceGroups/Log-Analytics/providers/Microsoft.Web/connections/azuresentinel-2",
+                    "id": "/subscriptions/""/providers/Microsoft.Web/locations/westeurope/managedApis/azuresentinel",
+                    "connectionId": "/subscriptions/""/resourceGroups/Log-Analytics/providers/Microsoft.Web/connections/azuresentinel-2",
                     "connectionName": "azuresentinel-2",
                     "connectionProperties": {
                         "authentication": {
