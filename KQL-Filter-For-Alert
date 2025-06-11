@@ -148,8 +148,8 @@
                     }
                 },
                 "azuremonitorlogs": {
-                    "id": "/subscriptions/e7ead463-f7db-479a-9a34-3d7535839330/providers/Microsoft.Web/locations/westeurope/managedApis/azuremonitorlogs",
-                    "connectionId": "/subscriptions/e7ead463-f7db-479a-9a34-3d7535839330/resourceGroups/Log-Analytics/providers/Microsoft.Web/connections/azuremonitorlogs",
+                    "id": "/subscriptions/""/providers/Microsoft.Web/locations/westeurope/managedApis/azuremonitorlogs",
+                    "connectionId": "/subscriptions/""/resourceGroups/Log-Analytics/providers/Microsoft.Web/connections/azuremonitorlogs",
                     "connectionName": "azuremonitorlogs",
                     "connectionProperties": {
                         "authentication": {
